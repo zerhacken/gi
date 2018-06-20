@@ -20,13 +20,13 @@ struct Sphere {
     float3 pos;
     float radius;
     Sphere(float3 p, float r) : pos(p), radius(r){}
-    float intersect(const Ray& ray)
+    double intersect(const Ray& ray)
     {
         float3 op = pos - ray.org;
         double t;
-        const float eps = 1e-4;
-        float b = dot(op, ray.dir);
-        float det = b * b - dot(op, op) + radius * radius;
+        const double eps = 1e-4;
+        double b = dot(op, ray.dir);
+        double det = b * b - dot(op, op) + radius * radius;
         if (det < 0.0f) {
             return 0;
         } else {
@@ -56,10 +56,10 @@ int main(int argc, char** argv)
         for (int x = 0; x < width; ++x)
         {
             float3 eye(50.0f, 52.0f, 295.6f);
-            float3 dir = normalize(float3(0, -0.042612, -1));
+            float3 dir = normalize(float3(0.0f, -0.042612f, -1.0f));
 
-            float3 cx(width * 0.5135 / height, 0, 0);
-            float3 cy = normalize(cross(cx, dir)) * float3(0.5135);
+            float3 cx(width * 0.5135f / height, 0.0f, 0.0f);
+            float3 cy = normalize(cross(cx, dir)) * float3(0.5135f);
 
             float3 d = cx * float3((x - width  / 2.0f) / width) +
                        cy * float3((y - height / 2.0f) / height) +
@@ -67,9 +67,9 @@ int main(int argc, char** argv)
 
             Ray ray(eye + d * float3(140.0f), d);
 
-            float t = sphere.intersect(ray);
+            double t = sphere.intersect(ray);
 
-            pixels[x + y * width] = t != 0.0f ? byte3(255, 255, 255) : byte3(0, 0, 0);
+            pixels[x + y * width] = t != 0.0 ? byte3(255, 255, 255) : byte3(0, 0, 0);
         }
     }
 
