@@ -218,7 +218,7 @@ int main(int argc, char** argv)
     World world;
     world.add (new Sphere(float3( 0.0f, -100.5f, -1.0f), 100.0f, new Lambertian(float3(0.75f, 0.75f, 0.75f))));
     world.add (new Sphere(float3( 1.0f,    0.0f, -1.0f),   0.5f, new Lambertian(float3(1.0f, 1.0f, 1.0f))));
-    world.add (new Sphere(float3( 0.0f,    0.0f, -1.0f),   0.5f, new Lambertian(float3(1.0f, 1.0f, 1.0f))));
+    world.add (new Sphere(float3( 0.0f,    0.0f, -1.0f),   0.5f, new Lambertian(float3(0.0f, 1.0f, 0.0f))));
     world.add (new Sphere(float3(-1.0f,    0.0f, -1.0f),   0.5f, new Lambertian(float3(1.0f, 1.0f, 1.0f))));
 
     auto start = chrono::steady_clock::now();
