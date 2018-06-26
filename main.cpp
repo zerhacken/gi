@@ -10,66 +10,236 @@
 using namespace std;
 using namespace linalg::aliases;
 
+struct Ray;
+struct HitInfo;
+struct Sphere;
+class Material;
+class Lambertian;
+class Camera;
+class World;
+
 struct Ray {
     float3 org;
     float3 dir;
-    Ray(float3 o, float3 d) : org(o), dir(d){}
-};
-
-struct Sphere {
-    float3 pos;
-    float radius;
-    Sphere(float3 p, float r) : pos(p), radius(r){}
-    float intersect(const Ray& ray)
+    Ray() {}
+    Ray(float3 o, float3 d) : org(o), dir(d) {}
+    float3 pointAt(const float t) const
     {
-        float3 op = pos - ray.org;
-        double t;
-        const float eps = 1e-4;
-        float b = dot(op, ray.dir);
-        float det = b * b - dot(op, op) + radius * radius;
-        if (det < 0.0f) {
-            return 0;
-        } else {
-            det = sqrt(det);
-        }
-        return (t = b - det) > eps ? t : (( t= b + det) > eps ? t : 0);
+        return org + t * dir;
     }
 };
 
+struct HitInfo {
+    float t;
+    float3 p;
+    float3 normal;
+    Material* material;
+};
+
+struct Sphere {
+    float3 m_pos;
+    float m_radius;
+    Material* m_material;
+    Sphere(float3 p, float r, Material* material) : m_pos(p), m_radius(r), m_material(material) {}
+    bool intersect(const Ray& ray, float tmin, float tmax, HitInfo& info) const
+    {
+        const float3 oc = ray.org - m_pos;
+        const float a = dot(ray.dir, ray.dir);
+        const float b = dot(oc, ray.dir);
+        const float c = dot(oc, oc) - m_radius * m_radius;
+        const float discriminant = b*b - a*c;
+        if (discriminant > 0.0f) {
+            float temp = (-b - sqrt(discriminant))/a;
+            if (temp < tmax && temp > tmin) {
+                info.t = temp;
+                info.p = ray.pointAt(info.t);
+                info.normal = (info.p - m_pos) / m_radius;
+                info.material = m_material;
+                return true;
+            }
+            temp = (-b + sqrt(discriminant)) / a;
+            if (temp < tmax && temp > tmin) {
+                info.t = temp;
+                info.p = ray.pointAt(info.t);
+                info.normal = (info.p - m_pos) / m_radius;
+                info.material = m_material;
+                return true;
+            }
+        }
+        return false;
+    }
+};
+
+class Material {
+public:
+    virtual bool scatter(const Ray& in, const HitInfo& info, float3& attenuation, Ray& scattered) const = 0;
+};
+
+class Lambertian : public Material {
+public:
+    Lambertian(const float3& albedo) : m_albedo(albedo) {}
+    virtual bool scatter(const Ray& in, const HitInfo& info, float3& attenuation, Ray& scattered) const
+    {
+        const float3 target = info.p + info.normal + randomInUnitSphere();
+        scattered = Ray(info.p, target - info.p);
+        attenuation = m_albedo;
+        return true;
+    }
+private:
+    float3 randomInUnitSphere() const
+    {
+        float3 p;
+        do {
+            p = float3(2.0f) * float3(drand48(), drand48(), drand48()) - float3(1.0f, 1.0f, 1.0f);
+        } while (dot(p,p) >= 1.0f);
+        return p;
+    }
+    float3 m_albedo;
+};
+
+class Camera {
+ public:
+    Camera(float3 eye, float3 at, float3 up, float fov, float aspect, float aperture, float focusDist)
+    {
+        m_lensRadius = aperture / 2.0f;
+
+        const float theta = fov * M_PI/180.0f;
+        const float half_height = tan(theta/2);
+        const float half_width = aspect * half_height;
+
+        m_origin = eye;
+
+        m_w = normalize(eye - at);
+        m_u = normalize(cross(up, m_w));
+        m_v = cross(m_w, m_u);
+
+        m_lowerLeftCorner = m_origin  - half_width * focusDist * m_u -half_height * focusDist * m_v - focusDist * m_w;
+        m_horizontal = 2.0f * half_width * focusDist * m_u;
+        m_vertical = 2.0f * half_height * focusDist * m_v;
+    }
+    Ray generate(float s, float t)
+    {
+        float3 rd = m_lensRadius * randomInUnitDisk();
+        float3 offset = m_u * rd.x + m_v * rd.y;
+        return Ray(m_origin + offset, m_lowerLeftCorner + s*m_horizontal + t*m_vertical - m_origin - offset);
+    }
+private:
+    float3 randomInUnitDisk() const
+    {
+        float3 p;
+        do {
+            p = float3(2.0) * float3(drand48(), drand48(), 0.0f) - float3(1.0f, 1.0f, 0.0f);
+        } while (dot(p,p) >= 1.0);
+        return p;
+    }
+    float3 m_origin;
+    float3 m_lowerLeftCorner;
+    float3 m_horizontal;
+    float3 m_vertical;
+    float3 m_u, m_v, m_w;
+    float m_lensRadius;
+};
+
+class World {
+public:
+    bool intersect(const Ray& ray, const float tmin, const float tmax, HitInfo& info) const
+    {
+        bool hit = false;
+        double closest = tmax;
+        HitInfo temp;
+        for (size_t i = 0; i < m_spheres.size(); ++i)
+        {
+            const Sphere* sphere = m_spheres[i];
+            if (sphere->intersect(ray, tmin, closest, temp))
+            {
+                hit = true;
+                closest = temp.t;
+                info = temp;
+            }
+        }
+
+        return hit;
+    }
+    void add(const Sphere* sphere)
+    {
+        m_spheres.push_back(sphere);
+    }
+private:
+    std::vector<const Sphere*> m_spheres;
+};
+
+
+float3 radiance(const Ray& ray, const World& world, int depth)
+{
+    const float tmin = numeric_limits<float>::min();
+    const float tmax = numeric_limits<float>::max();
+    const int maxDepth = 4;
+
+    HitInfo info;
+    if (world.intersect(ray, tmin, tmax, info))
+    {
+        Ray scattered;
+        float3 attenuation;
+        if (depth < maxDepth && info.material->scatter(ray, info, attenuation, scattered))
+        {
+            return attenuation * radiance(scattered, world, depth + 1);
+        }
+        else
+        {
+            return float3(0.0f, 0.0f, 0.0f);
+        }
+    }
+    else
+    {
+        float3 unitDirection = normalize(ray.dir);
+        float t = 0.5 * (unitDirection.y + 1.0);
+        return float3(1.0 - t) * float3(1.0f, 1.0f, 1.0f) + float3(t) * float3(0.1f, 0.1f, 0.1f);
+    }
+}
+
 int main(int argc, char** argv)
 {
-    const size_t width = 512;
-    const size_t height = 512;
+    const size_t width   = 800;
+    const size_t height  = 600;
+    const size_t samples =   8;
 
     vector<byte3> pixels(width * height);
 
-    std::random_device rd;
-    std::mt19937 gen(rd()); 
-    std::uniform_int_distribution<> dist(0, 255);
+    const float3 eye(0.0f, 0.5f, 3.0f);
+    const float3 at(0.0f, 0.0f, 0.0f);
 
-    Sphere sphere(float3(50.0, 52.0, 0.0f), 20);
+    const float focusDist = 3.0f;
+    const float aperture = 0.0f;
+    const float aspect = float(width) / float(height);
+    const float fov = 40.0f;
+
+    Camera camera(eye, at, float3(0.0f, -1.0f, 0.0f), fov, aspect, aperture, focusDist);
+
+    World world;
+    world.add (new Sphere(float3( 0.0f, -100.5f, -1.0f), 100.0f, new Lambertian(float3(0.75f, 0.75f, 0.75f))));
+    world.add (new Sphere(float3( 1.0f,    0.0f, -1.0f),   0.5f, new Lambertian(float3(1.0f, 1.0f, 1.0f))));
+    world.add (new Sphere(float3( 0.0f,    0.0f, -1.0f),   0.5f, new Lambertian(float3(1.0f, 1.0f, 1.0f))));
+    world.add (new Sphere(float3(-1.0f,    0.0f, -1.0f),   0.5f, new Lambertian(float3(1.0f, 1.0f, 1.0f))));
 
     auto start = chrono::steady_clock::now();
 
-    for (int y = 0; y < height; ++y)
-    {
-        for (int x = 0; x < width; ++x)
+      for (int y = 0; y < height; y++)
+      {
+        for (int x = 0; x < width; x++)
         {
-            float3 eye(50.0f, 52.0f, 295.6f);
-            float3 dir = normalize(float3(0, -0.042612, -1));
+            float3 rgb(0.0f, 0.0f, 0.0f);
+            for (size_t s = 0; s < samples; ++s)
+            {
+                const float u = float(x + drand48()) / float(width);
+                const float v = float(y + drand48()) / float(height);
+                const Ray ray = camera.generate(u, v);
 
-            float3 cx(width * 0.5135 / height, 0, 0);
-            float3 cy = normalize(cross(cx, dir)) * float3(0.5135);
+                rgb += radiance(ray, world, 0);
+            }
+            rgb = rgb * float3(1.0f / samples);
+            const float3 color = float3(sqrt(rgb[0]), sqrt(rgb[1]), sqrt(rgb[2]));
 
-            float3 d = cx * float3((x - width  / 2.0f) / width) +
-                       cy * float3((y - height / 2.0f) / height) +
-                       dir;
-
-            Ray ray(eye + d * float3(140.0f), d);
-
-            float t = sphere.intersect(ray);
-
-            pixels[x + y * width] = t != 0.0f ? byte3(255, 255, 255) : byte3(0, 0, 0);
+            pixels[x + y * width] = byte3(255.0 * color[0], 255.0 * color[1], 255.0 * color[2]);
         }
     }
 
