@@ -2,6 +2,8 @@
 
 fiddlings for recreational digging into global illumination
 
+![iq](iq.png)
+
 ## Building code
 
 ```

@@ -173,7 +173,7 @@ float3 radiance(const Ray& ray, const World& world, int depth)
 {
     const float tmin = numeric_limits<float>::min();
     const float tmax = numeric_limits<float>::max();
-    const int maxDepth = 4;
+    const int maxDepth = 16;
 
     HitInfo info;
     if (world.intersect(ray, tmin, tmax, info))
@@ -192,7 +192,7 @@ float3 radiance(const Ray& ray, const World& world, int depth)
     else
     {
         float3 unitDirection = normalize(ray.dir);
-        float t = 0.5 * (unitDirection.y + 1.0);
+        float t = 0.5f * (unitDirection.y + 1.0f);
         return float3(1.0 - t) * float3(1.0f, 1.0f, 1.0f) + float3(t) * float3(0.1f, 0.1f, 0.1f);
     }
 }
@@ -205,7 +205,7 @@ int main(int argc, char** argv)
 
     vector<byte3> pixels(width * height);
 
-    const float3 eye(0.0f, 0.5f, 3.0f);
+    const float3 eye(0.0f, 2.0f, 3.0f);
     const float3 at(0.0f, 0.0f, 0.0f);
 
     const float focusDist = 3.0f;
@@ -239,7 +239,7 @@ int main(int argc, char** argv)
             rgb = rgb * float3(1.0f / samples);
             const float3 color = float3(sqrt(rgb[0]), sqrt(rgb[1]), sqrt(rgb[2]));
 
-            pixels[x + y * width] = byte3(255.0 * color[0], 255.0 * color[1], 255.0 * color[2]);
+            pixels[x + y * width] = byte3(255.0f * color[0], 255.0f * color[1], 255.0f * color[2]);
         }
     }
 
