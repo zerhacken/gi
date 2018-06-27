@@ -18,7 +18,7 @@ class Lambertian;
 class Camera;
 class World;
 
-namespace
+namespace iq
 {
     float random()
     {
@@ -100,7 +100,7 @@ private:
     {
         float3 p;
         do {
-            p = float3(2.0f) * float3(random(), random(), random()) - float3(1.0f, 1.0f, 1.0f);
+            p = float3(2.0f) * float3(iq::random(), iq::random(), iq::random()) - float3(1.0f, 1.0f, 1.0f);
         } while (dot(p,p) >= 1.0f);
         return p;
     }
@@ -140,7 +140,7 @@ private:
     {
         float3 p;
         do {
-            p = float3(2.0) * float3(random(), random(), 0.0f) - float3(1.0f, 1.0f, 0.0f);
+            p = float3(2.0) * float3(iq::random(), iq::random(), 0.0f) - float3(1.0f, 1.0f, 0.0f);
         } while (dot(p,p) >= 1.0);
         return p;
     }
@@ -242,8 +242,8 @@ int main(int argc, char** argv)
             float3 rgb(0.0f, 0.0f, 0.0f);
             for (size_t s = 0; s < samples; ++s)
             {
-                const float u = float(x + random()) / float(width);
-                const float v = float(y + random()) / float(height);
+                const float u = float(x + iq::random()) / float(width);
+                const float v = float(y + iq::random()) / float(height);
                 const Ray ray = camera.generate(u, v);
 
                 rgb += radiance(ray, world, 0);
