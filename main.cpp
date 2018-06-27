@@ -235,8 +235,8 @@ int main(int argc, char** argv)
 
     auto start = chrono::steady_clock::now();
 
-      for (int y = 0; y < height; y++)
-      {
+    for (int y = 0; y < height; y++)
+    {
         for (int x = 0; x < width; x++)
         {
             float3 rgb(0.0f, 0.0f, 0.0f);
