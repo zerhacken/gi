@@ -18,6 +18,16 @@ class Lambertian;
 class Camera;
 class World;
 
+namespace
+{
+    float random()
+    {
+        static std::default_random_engine engine;
+        static std::uniform_real_distribution<> distribution(0, 1);
+        return distribution(engine);
+    }
+}
+
 struct Ray {
     float3 org;
     float3 dir;
@@ -90,7 +100,7 @@ private:
     {
         float3 p;
         do {
-            p = float3(2.0f) * float3(drand48(), drand48(), drand48()) - float3(1.0f, 1.0f, 1.0f);
+            p = float3(2.0f) * float3(random(), random(), random()) - float3(1.0f, 1.0f, 1.0f);
         } while (dot(p,p) >= 1.0f);
         return p;
     }
@@ -103,7 +113,9 @@ class Camera {
     {
         m_lensRadius = aperture / 2.0f;
 
-        const float theta = fov * M_PI/180.0f;
+        const double pi = 3.14159265358979323846f;
+
+        const float theta = fov * pi/180.0f;
         const float half_height = tan(theta/2);
         const float half_width = aspect * half_height;
 
@@ -128,7 +140,7 @@ private:
     {
         float3 p;
         do {
-            p = float3(2.0) * float3(drand48(), drand48(), 0.0f) - float3(1.0f, 1.0f, 0.0f);
+            p = float3(2.0) * float3(random(), random(), 0.0f) - float3(1.0f, 1.0f, 0.0f);
         } while (dot(p,p) >= 1.0);
         return p;
     }
@@ -230,8 +242,8 @@ int main(int argc, char** argv)
             float3 rgb(0.0f, 0.0f, 0.0f);
             for (size_t s = 0; s < samples; ++s)
             {
-                const float u = float(x + drand48()) / float(width);
-                const float v = float(y + drand48()) / float(height);
+                const float u = float(x + random()) / float(width);
+                const float v = float(y + random()) / float(height);
                 const Ray ray = camera.generate(u, v);
 
                 rgb += radiance(ray, world, 0);
