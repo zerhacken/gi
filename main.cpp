@@ -26,6 +26,24 @@ namespace iq
         static std::uniform_real_distribution<> distribution(0, 1);
         return distribution(engine);
     }
+
+    float3 randomInUnitSphere()
+    {
+        float3 p;
+        do {
+            p = float3(2.0f) * float3(iq::random(), iq::random(), iq::random()) - float3(1.0f, 1.0f, 1.0f);
+        } while (dot(p,p) >= 1.0f);
+        return p;
+    }
+
+    float3 randomInUnitDisk()
+    {
+        float3 p;
+        do {
+            p = float3(2.0) * float3(iq::random(), iq::random(), 0.0f) - float3(1.0f, 1.0f, 0.0f);
+        } while (dot(p,p) >= 1.0);
+        return p;
+    }
 }
 
 struct Ray {
@@ -90,20 +108,12 @@ public:
     Lambertian(const float3& albedo) : m_albedo(albedo) {}
     virtual bool scatter(const Ray& in, const HitInfo& info, float3& attenuation, Ray& scattered) const
     {
-        const float3 target = info.p + info.normal + randomInUnitSphere();
+        const float3 target = info.p + info.normal + iq::randomInUnitSphere();
         scattered = Ray(info.p, target - info.p);
         attenuation = m_albedo;
         return true;
     }
 private:
-    float3 randomInUnitSphere() const
-    {
-        float3 p;
-        do {
-            p = float3(2.0f) * float3(iq::random(), iq::random(), iq::random()) - float3(1.0f, 1.0f, 1.0f);
-        } while (dot(p,p) >= 1.0f);
-        return p;
-    }
     float3 m_albedo;
 };
 
@@ -131,19 +141,11 @@ class Camera {
     }
     Ray generate(float s, float t)
     {
-        float3 rd = m_lensRadius * randomInUnitDisk();
+        float3 rd = m_lensRadius * iq::randomInUnitDisk();
         float3 offset = m_u * rd.x + m_v * rd.y;
         return Ray(m_origin + offset, m_lowerLeftCorner + s*m_horizontal + t*m_vertical - m_origin - offset);
     }
 private:
-    float3 randomInUnitDisk() const
-    {
-        float3 p;
-        do {
-            p = float3(2.0) * float3(iq::random(), iq::random(), 0.0f) - float3(1.0f, 1.0f, 0.0f);
-        } while (dot(p,p) >= 1.0);
-        return p;
-    }
     float3 m_origin;
     float3 m_lowerLeftCorner;
     float3 m_horizontal;
