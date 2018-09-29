@@ -161,7 +161,7 @@ public:
     double closest = tmax;
     HitInfo temp;
     for (size_t i = 0; i < m_spheres.size(); ++i) {
-      const Sphere *sphere = m_spheres[i];
+      const Sphere *sphere = m_spheres[i].get();
       if (sphere->intersect(ray, tmin, closest, temp)) {
         hit = true;
         closest = temp.t;
@@ -171,10 +171,10 @@ public:
 
     return hit;
   }
-  void add(const Sphere *sphere) { m_spheres.push_back(sphere); }
+  void add(unique_ptr<Sphere> sphere) { m_spheres.push_back(std::move(sphere)); }
 
 private:
-  std::vector<const Sphere *> m_spheres;
+  std::vector<unique_ptr<Sphere>> m_spheres;
 };
 
 float3 radiance(const Ray &ray, const World &world, int depth) {
@@ -219,13 +219,13 @@ int main(int argc, char **argv) {
                 focusDist);
 
   World world;
-  world.add(new Sphere(float3(0.0f, -100.5f, -1.0f), 100.0f,
+  world.add(make_unique<Sphere>(float3(0.0f, -100.5f, -1.0f), 100.0f,
                        make_unique<Lambertian>(float3(0.75f, 0.75f, 0.75f))));
-  world.add(new Sphere(float3(1.0f, 0.0f, -1.0f), 0.5f,
+  world.add(make_unique<Sphere>(float3(1.0f, 0.0f, -1.0f), 0.5f,
                        make_unique<Lambertian>(float3(1.0f, 1.0f, 1.0f))));
-  world.add(new Sphere(float3(0.0f, 0.0f, -1.0f), 0.5f,
+  world.add(make_unique<Sphere>(float3(0.0f, 0.0f, -1.0f), 0.5f,
                        make_unique<Lambertian>(float3(0.0f, 1.0f, 0.0f))));
-  world.add(new Sphere(float3(-1.0f, 0.0f, -1.0f), 0.5f,
+  world.add(make_unique<Sphere>(float3(-1.0f, 0.0f, -1.0f), 0.5f,
                        make_unique<Lambertian>(float3(1.0f, 1.0f, 1.0f))));
 
   auto start = chrono::steady_clock::now();
