@@ -6,6 +6,7 @@
 #include <iostream>
 #include <random>
 #include <vector>
+#include <memory>
 
 using namespace std;
 using namespace linalg::aliases;
