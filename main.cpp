@@ -4,9 +4,9 @@
 
 #include <chrono>
 #include <iostream>
+#include <memory>
 #include <random>
 #include <vector>
-#include <memory>
 
 using namespace std;
 using namespace linalg::aliases;
@@ -172,7 +172,9 @@ public:
 
     return hit;
   }
-  void add(unique_ptr<Sphere> sphere) { m_spheres.push_back(std::move(sphere)); }
+  void add(unique_ptr<Sphere> sphere) {
+    m_spheres.push_back(std::move(sphere));
+  }
 
 private:
   std::vector<unique_ptr<Sphere>> m_spheres;
@@ -220,14 +222,18 @@ int main(int argc, char **argv) {
                 focusDist);
 
   World world;
-  world.add(make_unique<Sphere>(float3(0.0f, -100.5f, -1.0f), 100.0f,
-                       make_unique<Lambertian>(float3(0.75f, 0.75f, 0.75f))));
-  world.add(make_unique<Sphere>(float3(1.0f, 0.0f, -1.0f), 0.5f,
-                       make_unique<Lambertian>(float3(1.0f, 1.0f, 1.0f))));
-  world.add(make_unique<Sphere>(float3(0.0f, 0.0f, -1.0f), 0.5f,
-                       make_unique<Lambertian>(float3(0.0f, 1.0f, 0.0f))));
-  world.add(make_unique<Sphere>(float3(-1.0f, 0.0f, -1.0f), 0.5f,
-                       make_unique<Lambertian>(float3(1.0f, 1.0f, 1.0f))));
+  world.add(make_unique<Sphere>(
+      float3(0.0f, -100.5f, -1.0f), 100.0f,
+      make_unique<Lambertian>(float3(0.75f, 0.75f, 0.75f))));
+  world.add(
+      make_unique<Sphere>(float3(1.0f, 0.0f, -1.0f), 0.5f,
+                          make_unique<Lambertian>(float3(1.0f, 1.0f, 1.0f))));
+  world.add(
+      make_unique<Sphere>(float3(0.0f, 0.0f, -1.0f), 0.5f,
+                          make_unique<Lambertian>(float3(0.0f, 1.0f, 0.0f))));
+  world.add(
+      make_unique<Sphere>(float3(-1.0f, 0.0f, -1.0f), 0.5f,
+                          make_unique<Lambertian>(float3(1.0f, 1.0f, 1.0f))));
 
   auto start = chrono::steady_clock::now();
 
