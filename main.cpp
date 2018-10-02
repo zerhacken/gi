@@ -5,6 +5,7 @@
 #include <chrono>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <random>
 #include <vector>
 
@@ -58,6 +59,8 @@ struct HitInfo {
   float3 p;
   float3 normal;
   Material *material;
+  HitInfo(float t, float3 p, float3 normal, Material *material)
+      : t(t), p(p), normal(normal), material(material) {}
 };
 
 struct Sphere {
@@ -66,7 +69,8 @@ struct Sphere {
   std::unique_ptr<Material> m_material;
   Sphere(float3 p, float r, std::unique_ptr<Material> material)
       : m_pos(p), m_radius(r), m_material(std::move(material)) {}
-  bool intersect(const Ray &ray, float tmin, float tmax, HitInfo &info) const {
+  std::optional<HitInfo> intersect(const Ray &ray, float tmin,
+                                   float tmax) const {
     const float3 oc = ray.org - m_pos;
     const float a = dot(ray.dir, ray.dir);
     const float b = dot(oc, ray.dir);
@@ -75,22 +79,20 @@ struct Sphere {
     if (discriminant > 0.0f) {
       float temp = (-b - sqrt(discriminant)) / a;
       if (temp < tmax && temp > tmin) {
-        info.t = temp;
-        info.p = ray.pointAt(info.t);
-        info.normal = (info.p - m_pos) / m_radius;
-        info.material = m_material.get();
-        return true;
+        const float3 _pos = ray.pointAt(temp);
+        auto info = std::make_optional<HitInfo>(
+            temp, _pos, (_pos - m_pos) / m_radius, m_material.get());
+        return info;
       }
       temp = (-b + sqrt(discriminant)) / a;
       if (temp < tmax && temp > tmin) {
-        info.t = temp;
-        info.p = ray.pointAt(info.t);
-        info.normal = (info.p - m_pos) / m_radius;
-        info.material = m_material.get();
-        return true;
+        const float3 _pos = ray.pointAt(temp);
+        auto info = std::make_optional<HitInfo>(
+            temp, _pos, (_pos - m_pos) / m_radius, m_material.get());
+        return info;
       }
     }
-    return false;
+    return {};
   }
 };
 
@@ -156,21 +158,19 @@ private:
 
 class World {
 public:
-  bool intersect(const Ray &ray, const float tmin, const float tmax,
-                 HitInfo &info) const {
-    bool hit = false;
+  std::optional<HitInfo> intersect(const Ray &ray, const float tmin,
+                                   const float tmax) const {
+    std::optional<HitInfo> nearest;
     double closest = tmax;
-    HitInfo temp;
     for (size_t i = 0; i < m_spheres.size(); ++i) {
       const Sphere *sphere = m_spheres[i].get();
-      if (sphere->intersect(ray, tmin, closest, temp)) {
-        hit = true;
-        closest = temp.t;
-        info = temp;
+      if (auto local = sphere->intersect(ray, tmin, closest)) {
+        closest = local->t;
+        nearest = local;
       }
     }
 
-    return hit;
+    return nearest;
   }
   void add(unique_ptr<Sphere> sphere) {
     m_spheres.push_back(std::move(sphere));
@@ -185,12 +185,11 @@ float3 radiance(const Ray &ray, const World &world, int depth) {
   const float tmax = numeric_limits<float>::max();
   const int maxDepth = 16;
 
-  HitInfo info;
-  if (world.intersect(ray, tmin, tmax, info)) {
+  if (auto info = world.intersect(ray, tmin, tmax)) {
     Ray scattered;
     float3 attenuation;
     if (depth < maxDepth &&
-        info.material->scatter(ray, info, attenuation, scattered)) {
+        info->material->scatter(ray, *info, attenuation, scattered)) {
       return attenuation * radiance(scattered, world, depth + 1);
     } else {
       return float3(0.0f, 0.0f, 0.0f);
