@@ -98,6 +98,7 @@ struct Sphere {
 
 class Material {
 public:
+  virtual ~Material() {}
   virtual bool scatter(const Ray &in, const HitInfo &info, float3 &attenuation,
                        Ray &scattered) const = 0;
 };
