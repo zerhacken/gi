@@ -124,7 +124,7 @@ public:
          float aperture, float focusDist) {
     m_lensRadius = aperture / 2.0f;
 
-    const double pi = 3.14159265358979323846f;
+    const double pi = M_PI;
 
     const float theta = fov * pi / 180.0f;
     const float half_height = tan(theta / 2);
