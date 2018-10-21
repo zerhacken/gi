@@ -11,8 +11,8 @@ addons:
     sources:
     - ubuntu-toolchain-r-test
     packages:
-    - gcc-7
-    - g++-7
+    - gcc-8
+    - g++-8
     - clang
     - lcov
 
@@ -41,4 +41,4 @@ branches:
 notifications:
   email: false
 
-osx_image: xcode9.3
+osx_image: xcode9.4
