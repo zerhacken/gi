@@ -44,6 +44,11 @@ float3 randomInUnitDisk() {
   } while (dot(p, p) >= 1.0);
   return p;
 }
+
+float3 reflect (const float3& v, const float3& normal) {
+  return v - float3(2.0) * float3(dot(v, normal)) * normal;
+}
+
 } // namespace iq
 
 struct Ray {
@@ -116,6 +121,26 @@ public:
 
 private:
   float3 m_albedo;
+};
+
+class Metal : public Material {
+public:
+  Metal(const float3& a, float f) : albedo(a) {
+    if (f <= 1.0f) {
+      fuzz = f;
+    } else {
+      fuzz = 1.0f;
+    }
+  }
+  virtual bool scatter(const Ray &in, const HitInfo &info, float3& attenuation, Ray& scattered) const {
+    float3 reflected = iq::reflect(normalize(in.dir), info.normal);
+    scattered = Ray(info.p, reflected + fuzz * iq::randomInUnitSphere());
+    attenuation = albedo;
+    return (dot(scattered.dir, info.normal) > 0.0f);
+  }
+private:
+  float3 albedo;
+  float fuzz;
 };
 
 class Camera {
@@ -227,7 +252,7 @@ int main(int argc, char **argv) {
       make_unique<Lambertian>(float3(0.75f, 0.75f, 0.75f))));
   world.add(
       make_unique<Sphere>(float3(1.0f, 0.0f, -1.0f), 0.5f,
-                          make_unique<Lambertian>(float3(1.0f, 1.0f, 1.0f))));
+                          make_unique<Metal>(float3(0.8, 0.8, 0.9), 0.7)));
   world.add(
       make_unique<Sphere>(float3(0.0f, 0.0f, -1.0f), 0.5f,
                           make_unique<Lambertian>(float3(0.0f, 1.0f, 0.0f))));
