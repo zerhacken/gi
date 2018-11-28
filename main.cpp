@@ -149,7 +149,7 @@ public:
          float aperture, float focusDist) {
     m_lensRadius = aperture / 2.0f;
 
-    const double pi = M_PI;
+    const double pi = 3.14159265358979323846;
 
     const float theta = fov * pi / 180.0f;
     const float half_height = tan(theta / 2);
@@ -237,13 +237,14 @@ int main(int argc, char **argv) {
 
   const float3 eye(0.0f, 2.0f, 3.0f);
   const float3 at(0.0f, 0.0f, 0.0f);
+  const float3 up(0.0f, -1.0f, 0.0f);
 
   const float focusDist = 3.0f;
   const float aperture = 0.0f;
   const float aspect = float(width) / float(height);
   const float fov = 40.0f;
 
-  Camera camera(eye, at, float3(0.0f, -1.0f, 0.0f), fov, aspect, aperture,
+  Camera camera(eye, at, up, fov, aspect, aperture,
                 focusDist);
 
   World world;
