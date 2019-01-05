@@ -23,7 +23,7 @@ class World;
 namespace iq {
 float random() {
   static std::default_random_engine engine;
-  static std::uniform_real_distribution<> distribution(0, 1);
+  static std::uniform_real_distribution<float> distribution(0, 1);
   return distribution(engine);
 }
 
@@ -32,8 +32,8 @@ float3 randomInUnitSphere() {
   float v = iq::random();
 
   const double pi = 3.14159265358979323846;
-  float theta = u * 2.0 * pi;
-  float phi = acos(2.0 * v - 1.0);
+  float theta = u * 2.0f * static_cast<float>(pi);
+  float phi = acos(2.0f * v - 1.0f);
   float r = cbrt(iq::random());
 
   float sinTheta = sin(theta);
@@ -161,7 +161,7 @@ public:
 
     const double pi = 3.14159265358979323846;
 
-    const float theta = fov * pi / 180.0f;
+    const float theta = fov * static_cast<float>(pi) / 180.0f;
     const float half_height = tan(theta / 2);
     const float half_width = aspect * half_height;
 
@@ -197,7 +197,7 @@ public:
   std::optional<HitInfo> intersect(const Ray &ray, const float tmin,
                                    const float tmax) const {
     std::optional<HitInfo> nearest;
-    double closest = tmax;
+    float closest = tmax;
     for (size_t i = 0; i < m_spheres.size(); ++i) {
       const Sphere *sphere = m_spheres[i].get();
       if (auto local = sphere->intersect(ray, tmin, closest)) {
@@ -233,7 +233,7 @@ float3 radiance(const Ray &ray, const World &world, int depth) {
   } else {
     float3 unitDirection = normalize(ray.dir);
     float t = 0.5f * (unitDirection.y + 1.0f);
-    return float3(1.0 - t) * float3(1.0f, 1.0f, 1.0f) +
+    return float3(1.0f - t) * float3(1.0f, 1.0f, 1.0f) +
            float3(t) * float3(0.1f, 0.1f, 0.1f);
   }
 }
@@ -262,7 +262,7 @@ int main(int argc, char **argv) {
       make_unique<Lambertian>(float3(0.75f, 0.75f, 0.75f))));
   world.add(
       make_unique<Sphere>(float3(1.0f, 0.0f, -1.0f), 0.5f,
-                          make_unique<Metal>(float3(0.8, 0.8, 0.9), 0.7)));
+                          make_unique<Metal>(float3(0.8f, 0.8f, 0.9f), 0.7f)));
   world.add(
       make_unique<Sphere>(float3(0.0f, 0.0f, -1.0f), 0.5f,
                           make_unique<Lambertian>(float3(0.0f, 1.0f, 0.0f))));
