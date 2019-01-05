@@ -14,3 +14,9 @@ cd build
 cmake -DCMAKE_BUILD_TYPE=Release ../.
 cmake --build .
 ```
+
+## clang-format
+
+```
+clang-format -style=llvm -i main.cpp
+```
