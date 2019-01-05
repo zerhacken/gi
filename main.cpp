@@ -28,24 +28,32 @@ float random() {
 }
 
 float3 randomInUnitSphere() {
-  float3 p;
-  do {
-    p = float3(2.0f) * float3(iq::random(), iq::random(), iq::random()) -
-        float3(1.0f, 1.0f, 1.0f);
-  } while (dot(p, p) >= 1.0f);
-  return p;
+  float u = iq::random();
+  float v = iq::random();
+
+  const double pi = 3.14159265358979323846;
+  float theta = u * 2.0 * pi;
+  float phi = acos(2.0 * v - 1.0);
+  float r = cbrt(iq::random());
+
+  float sinTheta = sin(theta);
+  float cosTheta = cos(theta);
+  float sinPhi = sin(phi);
+  float cosPhi = cos(phi);
+
+  float x = r * sinPhi * cosTheta;
+  float y = r * sinPhi * sinTheta;
+  float z = r * cosPhi;
+
+  return float3(x, y, z);
 }
 
 float3 randomInUnitDisk() {
-  float3 p;
-  do {
-    p = float3(2.0) * float3(iq::random(), iq::random(), 0.0f) -
-        float3(1.0f, 1.0f, 0.0f);
-  } while (dot(p, p) >= 1.0);
-  return p;
+  float2 point(randomInUnitSphere().xy());
+  return float3(point.x, point.y, 0.0);
 }
 
-float3 reflect (const float3& v, const float3& normal) {
+float3 reflect(const float3 &v, const float3 &normal) {
   return v - float3(2.0) * float3(dot(v, normal)) * normal;
 }
 
@@ -125,19 +133,21 @@ private:
 
 class Metal : public Material {
 public:
-  Metal(const float3& a, float f) : albedo(a) {
+  Metal(const float3 &a, float f) : albedo(a) {
     if (f <= 1.0f) {
       fuzz = f;
     } else {
       fuzz = 1.0f;
     }
   }
-  virtual bool scatter(const Ray &in, const HitInfo &info, float3& attenuation, Ray& scattered) const {
+  virtual bool scatter(const Ray &in, const HitInfo &info, float3 &attenuation,
+                       Ray &scattered) const {
     float3 reflected = iq::reflect(normalize(in.dir), info.normal);
     scattered = Ray(info.p, reflected + fuzz * iq::randomInUnitSphere());
     attenuation = albedo;
     return (dot(scattered.dir, info.normal) > 0.0f);
   }
+
 private:
   float3 albedo;
   float fuzz;
@@ -244,8 +254,7 @@ int main(int argc, char **argv) {
   const float aspect = float(width) / float(height);
   const float fov = 40.0f;
 
-  Camera camera(eye, at, up, fov, aspect, aperture,
-                focusDist);
+  Camera camera(eye, at, up, fov, aspect, aperture, focusDist);
 
   World world;
   world.add(make_unique<Sphere>(
