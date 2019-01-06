@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 #include <random>
+#include <string>
 #include <vector>
 
 using namespace std;
@@ -306,6 +307,7 @@ int main(int argc, char **argv) {
   const size_t samples = 8;
 
   vector<byte3> pixels(width * height);
+  vector<double3> accumulation(width * height);
 
   const float3 eye(0.0f, 2.0f, 3.0f);
   const float3 at(0.0f, 0.0f, 0.0f);
@@ -326,11 +328,16 @@ int main(int argc, char **argv) {
   materials.push_back(make_shared<Dielectric>(1.5f));
 
   vector<shared_ptr<Sphere>> spheres;
-  spheres.push_back(make_shared<Sphere>(float3(0.0f, -100.5f, -1.0f), 100.0f, materials[0]));
-  spheres.push_back(make_shared<Sphere>(float3(1.0f, 0.0f, -1.0f), 0.5f, materials[1]));
-  spheres.push_back(make_shared<Sphere>(float3(0.0f, 0.0f, -1.0f), 0.5f, materials[2]));
-  spheres.push_back(make_shared<Sphere>(float3(-1.0f, 0.0f, -1.0f), 0.5f, materials[3]));
-  spheres.push_back(make_shared<Sphere>(float3(0.0f, 0.0f, 0.0f), 0.5f, materials[4]));
+  spheres.push_back(
+      make_shared<Sphere>(float3(0.0f, -100.5f, -1.0f), 100.0f, materials[0]));
+  spheres.push_back(
+      make_shared<Sphere>(float3(1.0f, 0.0f, -1.0f), 0.5f, materials[1]));
+  spheres.push_back(
+      make_shared<Sphere>(float3(0.0f, 0.0f, -1.0f), 0.5f, materials[2]));
+  spheres.push_back(
+      make_shared<Sphere>(float3(-1.0f, 0.0f, -1.0f), 0.5f, materials[3]));
+  spheres.push_back(
+      make_shared<Sphere>(float3(0.0f, 0.0f, 0.0f), 0.5f, materials[4]));
 
   World world;
   for (const auto sphere : spheres) {
@@ -339,22 +346,29 @@ int main(int argc, char **argv) {
 
   auto start = chrono::steady_clock::now();
 
-  for (int y = 0; y < height; y++) {
-    for (int x = 0; x < width; x++) {
-      float3 rgb(0.0f, 0.0f, 0.0f);
-      for (size_t s = 0; s < samples; ++s) {
+  for (size_t s = 1; s < samples + 1; ++s) {
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
         const float u = float(x + iq::random()) / float(width);
         const float v = float(y + iq::random()) / float(height);
+
         const Ray ray = camera.generate(u, v);
+        const float3 rgb = radiance(ray, world, 0);
 
-        rgb += radiance(ray, world, 0);
+        const float3 color = float3(sqrt(rgb[0]), sqrt(rgb[1]), sqrt(rgb[2]));
+        accumulation[x + y * width] += double3(color);
       }
-      rgb = rgb * float3(1.0f / samples);
-      const float3 color = float3(sqrt(rgb[0]), sqrt(rgb[1]), sqrt(rgb[2]));
+    }
 
-      pixels[x + y * width] =
+    for (size_t i = 0; i < accumulation.size(); ++i) {
+      const double3 value = accumulation[i];
+      const double3 color = value * double3(1.0f / s);
+
+      pixels[i] =
           byte3(255.0f * color[0], 255.0f * color[1], 255.0f * color[2]);
     }
+
+    stbi_write_png("iq.png", width, height, 3, pixels.data(), width * 3);
   }
 
   auto end = chrono::steady_clock::now();
@@ -363,8 +377,6 @@ int main(int argc, char **argv) {
   std::cout << "Elapsed "
             << chrono::duration_cast<chrono::milliseconds>(diff).count()
             << " [ms]" << std::endl;
-
-  stbi_write_png("iq.png", width, height, 3, pixels.data(), width * 3);
 
   return 0;
 }
