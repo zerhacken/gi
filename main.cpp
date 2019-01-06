@@ -57,6 +57,24 @@ float3 reflect(const float3 &v, const float3 &normal) {
   return v - float3(2.0) * float3(dot(v, normal)) * normal;
 }
 
+bool refract(const float3 &v, const float3 &n, float ni_over_nt,
+             float3 &refracted) {
+  float3 uv = normalize(v);
+  float dt = dot(uv, n);
+  float discriminant = 1.0f - ni_over_nt * ni_over_nt * (1.0f - dt * dt);
+  if (discriminant > 0.0f) {
+    refracted = ni_over_nt * (uv - n * dt) - n * sqrt(discriminant);
+    return true;
+  } else
+    return false;
+}
+
+float schlick(float cosine, float ref_idx) {
+  float r0 = (1.0f - ref_idx) / (1.0f + ref_idx);
+  r0 = r0 * r0;
+  return r0 + (1.0f - r0) * pow((1.0f - cosine), 5.0f);
+}
+
 } // namespace iq
 
 struct Ray {
@@ -79,8 +97,8 @@ struct HitInfo {
 struct Sphere {
   float3 m_pos;
   float m_radius;
-  std::unique_ptr<Material> m_material;
-  Sphere(float3 p, float r, std::unique_ptr<Material> material)
+  std::shared_ptr<Material> m_material;
+  Sphere(float3 p, float r, std::shared_ptr<Material> material)
       : m_pos(p), m_radius(r), m_material(std::move(material)) {}
   std::optional<HitInfo> intersect(const Ray &ray, float tmin,
                                    float tmax) const {
@@ -153,6 +171,49 @@ private:
   float fuzz;
 };
 
+class Dielectric : public Material {
+public:
+  Dielectric(float ri) : m_ri(ri) {}
+  virtual bool scatter(const Ray &in, const HitInfo &info, float3 &attenuation,
+                       Ray &scattered) const {
+    attenuation = float3(1.0f, 1.0f, 1.0f);
+
+    float3 reflected = iq::reflect(in.dir, info.normal);
+
+    float3 outward;
+    float ni_over_nt;
+    float cosine;
+
+    if (dot(in.dir, info.normal) > 0.0f) {
+      outward = -info.normal;
+      ni_over_nt = m_ri;
+      cosine = m_ri * dot(in.dir, info.normal);
+    } else {
+      outward = info.normal;
+      ni_over_nt = 1.0f / m_ri;
+      cosine = -dot(in.dir, info.normal) / length(in.dir);
+    }
+
+    float3 refracted;
+    float reflectProb;
+    if (iq::refract(in.dir, outward, ni_over_nt, refracted)) {
+      reflectProb = iq::schlick(cosine, m_ri);
+    } else {
+      reflectProb = 1.0f;
+    }
+
+    if (iq::random() < reflectProb) {
+      scattered = Ray(info.p, reflected);
+    } else {
+      scattered = Ray(info.p, refracted);
+    }
+
+    return true;
+  }
+
+  float m_ri;
+};
+
 class Camera {
 public:
   Camera(float3 eye, float3 at, float3 up, float fov, float aspect,
@@ -162,7 +223,7 @@ public:
     const double pi = 3.14159265358979323846;
 
     const float theta = fov * static_cast<float>(pi) / 180.0f;
-    const float half_height = tan(theta / 2);
+    const float half_height = tanf(theta / 2.0f);
     const float half_width = aspect * half_height;
 
     m_origin = eye;
@@ -179,8 +240,9 @@ public:
   Ray generate(float s, float t) {
     float3 rd = m_lensRadius * iq::randomInUnitDisk();
     float3 offset = m_u * rd.x + m_v * rd.y;
-    return Ray(m_origin + offset, m_lowerLeftCorner + s * m_horizontal +
-                                      t * m_vertical - m_origin - offset);
+    return Ray(m_origin + offset,
+               normalize(m_lowerLeftCorner + s * m_horizontal + t * m_vertical -
+                         m_origin - offset));
   }
 
 private:
@@ -208,12 +270,12 @@ public:
 
     return nearest;
   }
-  void add(unique_ptr<Sphere> sphere) {
+  void add(shared_ptr<Sphere> sphere) {
     m_spheres.push_back(std::move(sphere));
   }
 
 private:
-  std::vector<unique_ptr<Sphere>> m_spheres;
+  std::vector<shared_ptr<Sphere>> m_spheres;
 };
 
 float3 radiance(const Ray &ray, const World &world, int depth) {
@@ -256,19 +318,24 @@ int main(int argc, char **argv) {
 
   Camera camera(eye, at, up, fov, aspect, aperture, focusDist);
 
+  vector<shared_ptr<Material>> materials;
+  materials.push_back(make_shared<Lambertian>(float3((0.75f, 0.75f, 0.75f))));
+  materials.push_back(make_shared<Metal>(float3(0.8f, 0.8f, 0.9f), 0.7f));
+  materials.push_back(make_shared<Lambertian>(float3(0.0f, 1.0f, 0.0f)));
+  materials.push_back(make_shared<Lambertian>(float3(1.0f, 0.0f, 0.0f)));
+  materials.push_back(make_shared<Dielectric>(1.5f));
+
+  vector<shared_ptr<Sphere>> spheres;
+  spheres.push_back(make_shared<Sphere>(float3(0.0f, -100.5f, -1.0f), 100.0f, materials[0]));
+  spheres.push_back(make_shared<Sphere>(float3(1.0f, 0.0f, -1.0f), 0.5f, materials[1]));
+  spheres.push_back(make_shared<Sphere>(float3(0.0f, 0.0f, -1.0f), 0.5f, materials[2]));
+  spheres.push_back(make_shared<Sphere>(float3(-1.0f, 0.0f, -1.0f), 0.5f, materials[3]));
+  spheres.push_back(make_shared<Sphere>(float3(0.0f, 0.0f, 0.0f), 0.5f, materials[4]));
+
   World world;
-  world.add(make_unique<Sphere>(
-      float3(0.0f, -100.5f, -1.0f), 100.0f,
-      make_unique<Lambertian>(float3(0.75f, 0.75f, 0.75f))));
-  world.add(
-      make_unique<Sphere>(float3(1.0f, 0.0f, -1.0f), 0.5f,
-                          make_unique<Metal>(float3(0.8f, 0.8f, 0.9f), 0.7f)));
-  world.add(
-      make_unique<Sphere>(float3(0.0f, 0.0f, -1.0f), 0.5f,
-                          make_unique<Lambertian>(float3(0.0f, 1.0f, 0.0f))));
-  world.add(
-      make_unique<Sphere>(float3(-1.0f, 0.0f, -1.0f), 0.5f,
-                          make_unique<Lambertian>(float3(1.0f, 1.0f, 1.0f))));
+  for (const auto sphere : spheres) {
+    world.add(sphere);
+  }
 
   auto start = chrono::steady_clock::now();
 
