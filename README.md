@@ -20,3 +20,10 @@ cmake --build .
 ```
 clang-format -style=llvm -i main.cpp
 ```
+
+## wsl
+```
+sudo apt-get install cmake
+sudo apt-get install lcov
+sudo apt-get install build-essential gdb
+```
