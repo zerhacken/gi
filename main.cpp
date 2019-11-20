@@ -54,28 +54,6 @@ float3 randomInUnitDisk() {
   return float3(point.x, point.y, 0.0);
 }
 
-float3 reflect(const float3 &v, const float3 &normal) {
-  return v - float3(2.0) * float3(dot(v, normal)) * normal;
-}
-
-bool refract(const float3 &v, const float3 &n, float ni_over_nt,
-             float3 &refracted) {
-  float3 uv = normalize(v);
-  float dt = dot(uv, n);
-  float discriminant = 1.0f - ni_over_nt * ni_over_nt * (1.0f - dt * dt);
-  if (discriminant > 0.0f) {
-    refracted = ni_over_nt * (uv - n * dt) - n * sqrt(discriminant);
-    return true;
-  } else
-    return false;
-}
-
-float schlick(float cosine, float ref_idx) {
-  float r0 = (1.0f - ref_idx) / (1.0f + ref_idx);
-  r0 = r0 * r0;
-  return r0 + (1.0f - r0) * pow((1.0f - cosine), 5.0f);
-}
-
 } // namespace iq
 
 struct Ray {
@@ -148,71 +126,6 @@ public:
 
 private:
   float3 m_albedo;
-};
-
-class Metal : public Material {
-public:
-  Metal(const float3 &a, float f) : albedo(a) {
-    if (f <= 1.0f) {
-      fuzz = f;
-    } else {
-      fuzz = 1.0f;
-    }
-  }
-  virtual bool scatter(const Ray &in, const HitInfo &info, float3 &attenuation,
-                       Ray &scattered) const {
-    float3 reflected = iq::reflect(normalize(in.dir), info.normal);
-    scattered = Ray(info.p, reflected + fuzz * iq::randomInUnitSphere());
-    attenuation = albedo;
-    return (dot(scattered.dir, info.normal) > 0.0f);
-  }
-
-private:
-  float3 albedo;
-  float fuzz;
-};
-
-class Dielectric : public Material {
-public:
-  Dielectric(float ri) : m_ri(ri) {}
-  virtual bool scatter(const Ray &in, const HitInfo &info, float3 &attenuation,
-                       Ray &scattered) const {
-    attenuation = float3(1.0f, 1.0f, 1.0f);
-
-    float3 reflected = iq::reflect(in.dir, info.normal);
-
-    float3 outward;
-    float ni_over_nt;
-    float cosine;
-
-    if (dot(in.dir, info.normal) > 0.0f) {
-      outward = -info.normal;
-      ni_over_nt = m_ri;
-      cosine = m_ri * dot(in.dir, info.normal);
-    } else {
-      outward = info.normal;
-      ni_over_nt = 1.0f / m_ri;
-      cosine = -dot(in.dir, info.normal) / length(in.dir);
-    }
-
-    float3 refracted;
-    float reflectProb;
-    if (iq::refract(in.dir, outward, ni_over_nt, refracted)) {
-      reflectProb = iq::schlick(cosine, m_ri);
-    } else {
-      reflectProb = 1.0f;
-    }
-
-    if (iq::random() < reflectProb) {
-      scattered = Ray(info.p, reflected);
-    } else {
-      scattered = Ray(info.p, refracted);
-    }
-
-    return true;
-  }
-
-  float m_ri;
 };
 
 class Camera {
@@ -321,11 +234,11 @@ int main(int argc, char **argv) {
   Camera camera(eye, at, up, fov, aspect, aperture, focusDist);
 
   vector<shared_ptr<Material>> materials;
-  materials.push_back(make_shared<Lambertian>(float3((0.75f, 0.75f, 0.75f))));
-  materials.push_back(make_shared<Metal>(float3(0.8f, 0.8f, 0.9f), 0.7f));
+  materials.push_back(make_shared<Lambertian>(float3(0.75f, 0.75f, 0.75f)));
+  materials.push_back(make_shared<Lambertian>(float3(0.8f, 0.8f, 0.9f)));
   materials.push_back(make_shared<Lambertian>(float3(0.0f, 1.0f, 0.0f)));
   materials.push_back(make_shared<Lambertian>(float3(1.0f, 0.0f, 0.0f)));
-  materials.push_back(make_shared<Dielectric>(1.5f));
+  materials.push_back(make_shared<Lambertian>(float3(1.0f, 1.0f, 1.0f)));
 
   vector<shared_ptr<Sphere>> spheres;
   spheres.push_back(
